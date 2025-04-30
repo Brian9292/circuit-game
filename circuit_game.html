@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>電路連線小遊戲</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+    .board {
+      display: flex;
+      gap: 20px;
+    }
+    .components, .circuit {
+      padding: 10px;
+      background: white;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      min-height: 200px;
+      width: 45%;
+    }
+    .component {
+      padding: 5px 10px;
+      background: #b3e5fc;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: grab;
+    }
+    .slot {
+      border: 2px dashed #aaa;
+      padding: 20px;
+      margin: 10px 0;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .correct {
+      background-color: #c8e6c9;
+    }
+    .wrong {
+      background-color: #ffcdd2;
+    }
+    #scoreboard {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #next-level {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #81c784;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔌 電路連線小遊戲</h1>
+  <p>將正確的元件拖曳到對應的電路插槽中。</p>
+  <div id="scoreboard">分數：<span id="score">0</span></div>
+  <button id="next-level">下一關 ➡️</button>
+  <div class="board">
+    <div class="components" id="components">
+      <!-- 元件會由 JavaScript 生成 -->
+    </div>
+    <div class="circuit" id="circuit">
+      <!-- 插槽會由 JavaScript 生成 -->
+    </div>
+  </div>
+
+  <audio id="correct-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_3fd8965b30.mp3" preload="auto"></audio>
+  <audio id="wrong-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_bded7fc50f.mp3" preload="auto"></audio>
+
+  <script>
+    const componentPool = [
+      { type: 'resistor', label: '電阻' },
+      { type: 'capacitor', label: '電容' },
+      { type: 'inductor', label: '電感' },
+      { type: 'battery', label: '電池' },
+      { type: 'diode', label: '二極體' },
+      { type: 'switch', label: '開關' },
+      { type: 'led', label: 'LED' }
+    ];
+
+    const levels = [
+      ['battery', 'resistor', 'capacitor'],
+      ['battery', 'switch', 'led', 'resistor'],
+      ['battery', 'inductor', 'capacitor', 'diode']
+    ];
+
+    let currentLevel = 0;
+    let score = 0;
+
+    const componentsContainer = document.getElementById('components');
+    const circuitContainer = document.getElementById('circuit');
+    const scoreDisplay = document.getElementById('score');
+    const nextButton = document.getElementById('next-level');
+    const correctSound = document.getElementById('correct-sound');
+    const wrongSound = document.getElementById('wrong-sound');
+
+    function loadLevel(levelIndex) {
+      componentsContainer.innerHTML = '';
+      circuitContainer.innerHTML = '';
+      nextButton.style.display = 'none';
+
+      const required = levels[levelIndex];
+      const shuffled = [...componentPool].sort(() => Math.random() - 0.5);
+
+      shuffled.forEach(comp => {
+        const div = document.createElement('div');
+        div.className = 'component';
+        div.textContent = comp.label;
+        div.setAttribute('draggable', 'true');
+        div.dataset.type = comp.type;
+        componentsContainer.appendChild(div);
+
+        div.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('type', comp.type);
+        });
+      });
+
+      required.forEach(req => {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.dataset.accept = req;
+        slot.textContent = `請放入 ${componentPool.find(c => c.type === req).label}`;
+
+        slot.addEventListener('dragover', e => e.preventDefault());
+        slot.addEventListener('drop', e => {
+          const type = e.dataTransfer.getData('type');
+          if (slot.classList.contains('correct')) return;
+
+          if (type === slot.dataset.accept) {
+            slot.textContent = `✔ ${componentPool.find(c => c.type === type).label} 已安裝`;
+            slot.classList.add('correct');
+            slot.classList.remove('wrong');
+            score += 10;
+            scoreDisplay.textContent = score;
+            correctSound.play();
+            checkLevelComplete();
+          } else {
+            slot.textContent = `✖ 錯誤的元件：${componentPool.find(c => c.type === type).label}`;
+            slot.classList.add('wrong');
+            slot.classList.remove('correct');
+            score -= 5;
+            scoreDisplay.textContent = score;
+            wrongSound.play();
+          }
+        });
+
+        circuitContainer.appendChild(slot);
+      });
+    }
+
+    function checkLevelComplete() {
+      const slots = document.querySelectorAll('.slot');
+      const allCorrect = [...slots].every(slot => slot.classList.contains('correct'));
+      if (allCorrect) {
+        if (currentLevel < levels.length - 1) {
+          nextButton.style.display = 'inline-block';
+        } else {
+          alert('🎉 恭喜你完成所有關卡！總分：' + score);
+        }
+      }
+    }
+
+    nextButton.addEventListener('click', () => {
+      currentLevel++;
+      loadLevel(currentLevel);
+    });
+
+    loadLevel(currentLevel);
+  </script>
+</body>
+</html>
